@@ -47,7 +47,7 @@ RANDOM_ID = str(uuid.uuid4())
 ## DO NOT MISUSE (OR YOU KNOW THE CONSEQUENCES)
 
 ## HAHA SORRY DRM PROVIDERS IF YOU CANT PROVIDE SECURITY TO YOUR CUSTOMERS
-## WE REVERSE ENGINEERS HAVE NOTHING TO SO
+## WE REVERSE ENGINEERS HAVE NOTHING TO DO
 
 PUBLIC_KEY_PEM = """-----BEGIN RSA PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw5cpnzm8MOaLOmA5BcXO
@@ -137,7 +137,7 @@ def send_chunk(duration, position):
 for i in range(iterations):
     send_chunk(SECONDS_TO_ADD, current_position)
     current_position += SECONDS_TO_ADD
-    time.sleep(1.5)
+    time.sleep(1)
 
 if remaining_seconds > 0:
     send_chunk(remaining_seconds, current_position)
