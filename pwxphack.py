@@ -143,6 +143,6 @@ if remaining_seconds > 0:
     send_chunk(remaining_seconds, current_position)
     
 if all_success:
-    print(f"\nSuccessfully Credited ({required_xp})XP to your account ✅")
+    print(f"\nSuccessfully Credited {required_xp}XP to your account ✅")
 else:
     print("\nProcess completed but some chunks failed.")
