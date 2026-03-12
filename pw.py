@@ -312,41 +312,65 @@ async def ping(event):
 IST = timezone(timedelta(hours=5, minutes=30))
 
 async def daily_xp_scheduler():
-    """Runs python3 pwxphack.py 1000 automatically at exactly 12:01 AM IST every day"""
+    """Runs pwxphack.py automatically at 12:01 AM IST"""
     while True:
         now = datetime.now(IST)
         target = now.replace(hour=0, minute=1, second=0, microsecond=0)
-        
+
         if now >= target:
             target += timedelta(days=1)
-            
+
         sleep_seconds = (target - now).total_seconds()
         logger.info(f"Scheduler: Sleeping for {sleep_seconds} seconds until next 12:01 AM IST.")
-        
+
         await asyncio.sleep(sleep_seconds)
-        
-        logger.info("Scheduler: Running daily automated 1000 XP hack...")
+
+        logger.info("Scheduler: Running daily automated XP hack...")
+
         try:
+            # send start message
+            msg = await client.send_message(
+                7803597625,
+                "Auto XP scheduler started.\nCrediting 2000 XP..."
+            )
+
             process = await asyncio.create_subprocess_exec(
                 "python3", "-u", "pwxphack.py", "2000",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT
             )
-            
-            # Read live stream line by line for the scheduler too
+
+            logs = []
+
             while True:
                 line = await process.stdout.readline()
                 if not line:
                     break
+
                 decoded_line = line.decode().rstrip()
-                print(f"[AUTO-XP] {decoded_line}") 
-                
+                print(decoded_line, flush=True)
+                logs.append(decoded_line)
+
             await process.wait()
+
+            # edit message instead of sending new one
+            await msg.edit(
+                "Auto XP completed successfully.\n2000 XP credited."
+            )
+
             logger.info("Scheduler: Daily XP hack completed successfully.")
-            
+
         except Exception as e:
             logger.error(f"Scheduler: Failed to run automated script: {e}")
 
+            try:
+                await msg.edit(f"Auto XP scheduler failed:\n{e}")
+            except:
+                await client.send_message(
+                    7803597625,
+                    f"Auto XP scheduler failed:\n{e}"
+                )
+            
 # --- FastAPI & Runners ---
 app = FastAPI()
 
