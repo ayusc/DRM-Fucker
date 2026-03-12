@@ -72,7 +72,6 @@ headers = {
 }
 
 def send_chunk(duration, position):
-    global all_success
     fake_stats = {
         "id": SESSION_ID,
         "eType": "stream_sync",
