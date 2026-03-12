@@ -287,9 +287,11 @@ async def handle_earnxp_command(event):
             line = await process.stdout.readline()
             if not line:
                 break
-                
-            decoded_line = line.decode().rstrip()
-            print(decoded_line)
+        
+            decoded_line = line.decode().strip()
+        
+            print(f"{decoded_line}", flush=True)
+        
             output_lines.append(decoded_line)
             
         await process.wait()
