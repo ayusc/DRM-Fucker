@@ -39,8 +39,7 @@ if required_xp > 5000:
 SESSION_ID = os.environ["SESSION_ID"]
 BEARER_TOKEN = os.environ["BEARER_TOKEN"]
 CLIENT_ID = os.environ["CLIENT_ID"]
-PUBLIC_KEY_PEM = os.environ["PUBLIC_KEY_PEM"]
-
+PUBLIC_KEY_PEM = os.environ["PUBLIC_KEY_PEM"].replace("\\n", "\n")
 RANDOM_ID = str(uuid.uuid4())
 
 rsa_key = RSA.import_key(PUBLIC_KEY_PEM)
