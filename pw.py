@@ -328,7 +328,7 @@ async def daily_xp_scheduler():
         logger.info("Scheduler: Running daily automated 1000 XP hack...")
         try:
             process = await asyncio.create_subprocess_exec(
-                "python3", "-u", "pwxphack.py", "1000",
+                "python3", "-u", "pwxphack.py", "2000",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT
             )
