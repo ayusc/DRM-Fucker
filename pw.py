@@ -376,6 +376,5 @@ def start_telethon():
         await client.run_until_disconnected()
     asyncio.run(runner())
 
-if __name__ == "__main__":
-    threading.Thread(target=start_telethon, daemon=True).start()
-    threading.Thread(target=ping_self, daemon=True).start()
+threading.Thread(target=start_telethon, daemon=True).start()
+threading.Thread(target=ping_self, daemon=True).start()
