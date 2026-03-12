@@ -12,6 +12,7 @@ import threading
 import time
 import requests
 from FastTelethon import upload_file
+from datetime import datetime, timedelta, timezone
 
 # Configuration 
 API_ID = int(os.getenv("API_ID"))
@@ -28,7 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Telethon client (using a local sqlite session file)
+# Initialize Telethon client
 if BOT_TOKEN:
     logger.info("Initializing bot with provided BOT_TOKEN.")
     client = TelegramClient("pw_bot_session", API_ID, API_HASH)
@@ -97,7 +98,7 @@ async def download_pw_video(link, key, video_index, event, topic_id):
         "N_m3u8DL-RE",
         link,
         "--key", key,
-        "--thread-count", "8",        # Optimizes CPU usage for free tier
+        "--thread-count", "8",        
         "--append-url-params",
         "--auto-select",
         "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0",
@@ -105,7 +106,7 @@ async def download_pw_video(link, key, video_index, event, topic_id):
         "--save-dir", BASE_DIR,
         "--tmp-dir", BASE_DIR,       
         "--save-name", save_name,
-        "--del-after-done",           # Instantly cleans up fragments to save disk space
+        "--del-after-done",           
         "-M", "format=mp4"
     ]
 
@@ -176,14 +177,12 @@ async def upload_video(output_video, video_index, event, topic_id):
 @client.on(events.ChatAction)
 async def delete_service_messages(event):
     try:
-        # ChatAction covers pins, user joins, name changes, etc.
         await event.delete()
         logger.info("Deleted a system service message.")
     except Exception:
-        # Fails silently if the bot lacks admin rights
         pass
 
-# Main command handler
+# --- Download Command Handler ---
 @client.on(events.NewMessage(pattern=r'(?i)^/pw(?:@[a-zA-Z0-9_]+)?\s+(.+)', incoming=True))
 async def handle_pw_command(event):
     topic_id = event.reply_to_msg_id if event.is_reply else None
@@ -234,16 +233,124 @@ async def handle_pw_command(event):
         else:
             logger.warning(f"Skipping upload for Lecture {video_index} due to download failure.")
             
-        # Aggressive cleanup after EVERY lecture to prevent Koyeb disk throttling
         clear_base_dir()
 
     set_processing_status(False)
+
+# --- XP Command Handler ---
+@client.on(events.NewMessage(pattern=r'(?i)^/earnxp(?:@[a-zA-Z0-9_]+)?(?:\s+(.+))?$', incoming=True))
+async def handle_earnxp_command(event):
+    topic_id = event.reply_to_msg_id if event.is_reply else None
+    value_str = event.pattern_match.group(1)
+    
+    if not value_str:
+        await client.send_message(event.chat_id, "Error: Please provide an XP value. Usage: `/earnxp <value>`", reply_to=topic_id)
+        return
+
+    try:
+        required_xp = int(value_str.strip())
+    except ValueError:
+        await client.send_message(event.chat_id, "Error: XP value must be a positive integer.", reply_to=topic_id)
+        return
+
+    if required_xp <= 0:
+        await client.send_message(event.chat_id, "Error: XP value must be greater than 0.", reply_to=topic_id)
+        return
+
+    if required_xp % 100 != 0:
+        await client.send_message(event.chat_id, "Error: XP value must be a multiple of 100.", reply_to=topic_id)
+        return
+
+    if required_xp > 5000:
+        await client.send_message(event.chat_id, "Error: maximum allowed value for XP is 5000.", reply_to=topic_id)
+        return
+
+    global is_processing
+    if is_processing:
+        await client.send_message(event.chat_id, "Another task is already running. Please wait.", reply_to=topic_id)
+        return
+
+    set_processing_status(True)
+    progress_message = await client.send_message(event.chat_id, f"Starting script to earn {required_xp} XP...", reply_to=topic_id)
+
+    try:
+        # STDOUT merges stderr so we capture everything live
+        process = await asyncio.create_subprocess_exec(
+            "python3", "pwxphack.py", str(required_xp),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
+        )
+        
+        output_lines = []
+        
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+                
+            decoded_line = line.decode().rstrip()
+            print(decoded_line)
+            output_lines.append(decoded_line)
+            
+        await process.wait()
+        
+        output = "\n".join(output_lines)
+            
+        if len(output) > 3500:
+            output = output[:3500] + "\n...[Output Truncated]"
+            
+        await progress_message.edit(f"**XP Command Finished**\nTarget: {required_xp} XP\n\n```text\n{output}\n```")
+        
+    except Exception as e:
+        logger.error(f"Failed to execute pwxphack.py: {e}")
+        await progress_message.edit(f"An error occurred while running the script: {str(e)}")
+    finally:
+        set_processing_status(False)
 
 @client.on(events.NewMessage(pattern=r'(?i)^/ping(?:@[a-zA-Z0-9_]+)?$', incoming=True))
 async def ping(event):
     await event.reply("PW Downloader Bot is alive and ready!")
 
-# --- FastAPI & Background Tasks ---
+# --- Scheduled Background Task ---
+IST = timezone(timedelta(hours=5, minutes=30))
+
+async def daily_xp_scheduler():
+    """Runs python3 pwxphack.py 1000 automatically at exactly 12:01 AM IST every day"""
+    while True:
+        now = datetime.now(IST)
+        target = now.replace(hour=0, minute=1, second=0, microsecond=0)
+        
+        if now >= target:
+            target += timedelta(days=1)
+            
+        sleep_seconds = (target - now).total_seconds()
+        logger.info(f"Scheduler: Sleeping for {sleep_seconds} seconds until next 12:01 AM IST.")
+        
+        await asyncio.sleep(sleep_seconds)
+        
+        logger.info("Scheduler: Running daily automated 1000 XP hack...")
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "python3", "pwxphack.py", "1000",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
+            
+            # Read live stream line by line for the scheduler too
+            while True:
+                line = await process.stdout.readline()
+                if not line:
+                    break
+                decoded_line = line.decode().rstrip()
+                print(f"[AUTO-XP] {decoded_line}") 
+                
+            await process.wait()
+            logger.info("Scheduler: Daily XP hack completed successfully.")
+            
+        except Exception as e:
+            logger.error(f"Scheduler: Failed to run automated script: {e}")
+
+# --- FastAPI & Runners ---
 app = FastAPI()
 
 @app.get("/")
@@ -265,6 +372,10 @@ def start_telethon():
     async def runner():
         await client.start(bot_token=BOT_TOKEN)
         logger.info("Telethon Bot client started successfully!")
+        
+        # Start the background task alongside the bot
+        asyncio.create_task(daily_xp_scheduler())
+        
         await client.run_until_disconnected()
     asyncio.run(runner())
 
