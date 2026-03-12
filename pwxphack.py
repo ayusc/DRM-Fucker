@@ -1,3 +1,7 @@
+# A HACK FOR NOTORIOUSLY GAINING XP's (CREDITS) IN PHYSICS WALLAH WITHOUT DOING ANYTHING
+# WARNING: USE AT YOUR OWN RISK !! 
+# USE YOUR OWN
+
 import os
 import json
 import base64
@@ -12,31 +16,35 @@ from Crypto.Hash import SHA256
 if len(sys.argv) != 2:
         print("Error: XP value must be provided.")
         print("Usage: python script.py <value>")
-        return
+        sys.exit(0)
 
 try:
         required_xp = int(sys.argv[1])
 except ValueError:
         print("Error: XP value must be a positive integer.")
-        return
+        sys.exit(0)
 
 if required_xp <= 0:
         print("Error: XP value must be greater than 0.")
-        return
+        sys.exit(0)
 
 if required_xp % 100 != 0:
         print("Error: XP value must be a multiple of 100.")
-        return
+        sys.exit(0)
 
 if required_xp > 5000:
         print("Error: maximum allowed value for XP is 5000.")
-        return
+        sys.exit(0)
 
 SESSION_ID = os.environ["SESSION_ID"]
 BEARER_TOKEN = os.environ["BEARER_TOKEN"]
 CLIENT_ID = os.environ["CLIENT_ID"]
 
 RANDOM_ID = str(uuid.uuid4())
+
+## CRITICAL
+## THIS IS THE RAW PEM CERTICATE KEY USED BY API.PENPENCIL RIGHT NOW (MAY CHANGE IN THE FUTURE WHO KNOWS)
+## DO NOT MISUSE (OR YOU KNOW THE CONSEQUENCES)
 
 PUBLIC_KEY_PEM = """-----BEGIN RSA PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw5cpnzm8MOaLOmA5BcXO
@@ -59,6 +67,7 @@ encrypted_key_b64 = base64.b64encode(encrypted_key_bytes).decode()
 
 SECONDS_PER_XP = 30
 SECONDS_TO_ADD = 60
+all_success = True
 
 total_watch_seconds = required_xp * SECONDS_PER_XP
 iterations = total_watch_seconds // SECONDS_TO_ADD
@@ -105,13 +114,22 @@ def send_chunk(duration, position):
         "id": SESSION_ID
     }
 
-    r = requests.post(
-        "https://api.penpencil.co/uxncc-be-go/video-stats/v1/sync-stats",
-        json=payload,
-        headers=headers
+    response = requests.post(
+    "https://api.penpencil.co/uxncc-be-go/video-stats/v1/sync-stats",
+    json=payload,
+    headers=headers
     )
 
-    print(r.status_code, r.text)
+    try:
+      data = response.json()
+    except:
+      data = {}
+
+    if response.status_code == 200 and data.get("message") == "Stats synced successfully":
+       print(f"\rSending chunks ({i+1}/{iterations}) of credits - 2XP", end="", flush=True)
+    else:
+       all_success = False
+       print(f"\nRequest failed: {response.status_code} {response.text}")
 
 for i in range(iterations):
     send_chunk(SECONDS_TO_ADD, current_position)
@@ -120,3 +138,8 @@ for i in range(iterations):
 
 if remaining_seconds > 0:
     send_chunk(remaining_seconds, current_position)
+    
+if all_success:
+    print(f"\nSuccessfully Credited ({required_xp})XP to your account ✅")
+else:
+    print("\nProcess completed but some chunks failed.")
