@@ -73,6 +73,7 @@ headers = {
 }
 
 def send_chunk(duration, position):
+    global all_success
     fake_stats = {
         "id": SESSION_ID,
         "eType": "stream_sync",
@@ -113,7 +114,7 @@ def send_chunk(duration, position):
       data = {}
 
     if response.status_code == 200 and data.get("message") == "Stats synced successfully":
-       print(f"\rSending chunks ({i+1}/{iterations}) of credits - 2XP", end="", flush=True)
+       print(f"Sending chunks ({i+1}/{iterations}) of credits - 2XP", flush=True)
     else:
        all_success = False
        print(f"\nRequest failed: {response.status_code} {response.text}")
