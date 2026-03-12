@@ -12,6 +12,7 @@ import sys
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Hash import SHA256
+sys.stdout.reconfigure(line_buffering=True)
 
 if len(sys.argv) != 2:
         print("Error: XP value must be provided.")
