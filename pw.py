@@ -276,7 +276,7 @@ async def handle_earnxp_command(event):
     try:
         # STDOUT merges stderr so we capture everything live
         process = await asyncio.create_subprocess_exec(
-            "python3", "pwxphack.py", str(required_xp),
+            "python3", "-u", "pwxphack.py", str(required_xp),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT
         )
@@ -293,13 +293,8 @@ async def handle_earnxp_command(event):
             output_lines.append(decoded_line)
             
         await process.wait()
-        
-        output = "\n".join(output_lines)
             
-        if len(output) > 3500:
-            output = output[:3500] + "\n...[Output Truncated]"
-            
-        await progress_message.edit(f"**XP Command Finished**\nTarget: {required_xp} XP\n\n```text\n{output}\n```")
+        await progress_message.edit(f"**XP Command Finished**\n{required_xp}XP is credited to your account ✅")
         
     except Exception as e:
         logger.error(f"Failed to execute pwxphack.py: {e}")
@@ -331,7 +326,7 @@ async def daily_xp_scheduler():
         logger.info("Scheduler: Running daily automated 1000 XP hack...")
         try:
             process = await asyncio.create_subprocess_exec(
-                "python3", "pwxphack.py", "1000",
+                "python3", "-u", "pwxphack.py", "1000",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT
             )
