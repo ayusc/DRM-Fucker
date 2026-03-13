@@ -120,6 +120,7 @@ def send_chunk(duration, position):
 for i in range(iterations):
     send_chunk(SECONDS_TO_ADD, current_position)
     current_position += SECONDS_TO_ADD
+    time.sleep(1)
 
 if remaining_seconds > 0:
     send_chunk(remaining_seconds, current_position)
