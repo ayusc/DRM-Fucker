@@ -14,33 +14,90 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Hash import SHA256
 
 if len(sys.argv) != 2:
-        print("Error: XP value must be provided.")
-        print("Usage: python script.py <value>")
-        sys.exit(0)
+    print("Error: XP value must be provided.")
+    print("Usage: python script.py <value>")
+    sys.exit(0)
 
 try:
-        required_xp = int(sys.argv[1])
+    required_xp = int(sys.argv[1])
 except ValueError:
-        print("Error: XP value must be a positive integer.")
-        sys.exit(0)
+    print("Error: XP value must be a positive integer.")
+    sys.exit(0)
 
 if required_xp <= 0:
-        print("Error: XP value must be greater than 0.")
-        sys.exit(0)
+    print("Error: XP value must be greater than 0.")
+    sys.exit(0)
 
 if required_xp % 100 != 0:
-        print("Error: XP value must be a multiple of 100.")
-        sys.exit(0)
+    print("Error: XP value must be a multiple of 100.")
+    sys.exit(0)
 
 if required_xp > 5000:
-        print("Error: maximum allowed value for XP is 5000.")
-        sys.exit(0)
+    print("Error: maximum allowed value for XP is 5000.")
+    sys.exit(0)
 
-SESSION_ID = os.environ["SESSION_ID"]
-BEARER_TOKEN = os.environ["BEARER_TOKEN"]
-CLIENT_ID = os.environ["CLIENT_ID"]
-PUBLIC_KEY_PEM = os.environ["PUBLIC_KEY_PEM"].replace("\\n", "\n")
+BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
+if not BEARER_TOKEN:
+    print("Error: BEARER_TOKEN environment variable is missing.")
+    sys.exit(0)
+
+CLIENT_ID = os.environ.get("CLIENT_ID")
+
+SESSION_ID = str(uuid.uuid4())
 RANDOM_ID = str(uuid.uuid4())
+
+headers = {
+    "authorization": f"Bearer {BEARER_TOKEN}",
+    "content-type": "application/json",
+    "client-type": "WEB",
+    "client-id": CLIENT_ID,
+    "client-version": "200",
+    "version": "0.0.1",
+    "randomid": RANDOM_ID
+}
+
+register_payload = {
+    "Online": True,
+    "elements": [
+        {
+            "sessionId": SESSION_ID,
+            "vdoSrc": "PW",
+            "vdoType": "penpencil-vdo",
+            "ePoint": "KHAZANA_LECTURE_VIDEOS",
+            "cohortId": "634fd383b08be600181ddd62",
+            "type": "lecture",
+            "tyId": "67fd7c0b0194d65881a7a871",
+            "device": "Desktop",
+            "isLive": False,
+            "isDownloaded": False,
+            "isComplete": True,
+            "prgId": "62c7bd151690a10018df0307",
+            "batchId": "691d65902a5874d0b067fd0d",
+            "tags": [],
+            "metadata": "",
+            "videoLength": 0
+        }
+    ]
+}
+
+print(f"[*] Registering session: {SESSION_ID}", flush=True)
+try:
+    reg_response = requests.post(
+        "https://api.penpencil.co/uxncc-be-go/video-stats/v1/register-session", 
+        json=register_payload, 
+        headers=headers
+    )
+    reg_data = reg_response.json()
+    if reg_response.status_code in [200, 201] and reg_data.get("success"):
+        # Automatically parses and formats the PEM key
+        PUBLIC_KEY_PEM = reg_data["data"]["publicKey"].replace("\\n", "\n")
+        print("[+] Successfully obtained RSA Public Key.\n", flush=True)
+    else:
+        print(f"[-] Failed to register session: {reg_response.text}")
+        sys.exit(0)
+except Exception as e:
+    print(f"[-] Network error during registration: {e}")
+    sys.exit(0)
 
 rsa_key = RSA.import_key(PUBLIC_KEY_PEM)
 cipher_rsa = PKCS1_OAEP.new(rsa_key, hashAlgo=SHA256.new())
@@ -61,17 +118,9 @@ remaining_seconds = total_watch_seconds % SECONDS_TO_ADD
 
 current_position = 61
 
-headers = {
-    "authorization": f"Bearer {BEARER_TOKEN}",
-    "content-type": "application/json",
-    "client-type": "WEB",
-    "client-id": CLIENT_ID,
-    "client-version": "200",
-    "version": "0.0.1",
-    "randomid": RANDOM_ID
-}
-
-def send_chunk(duration, position):
+def send_chunk(duration, position, chunk_label):
+    global all_success
+    
     fake_stats = {
         "id": SESSION_ID,
         "eType": "stream_sync",
@@ -101,31 +150,32 @@ def send_chunk(duration, position):
     }
 
     response = requests.post(
-    "https://api.penpencil.co/uxncc-be-go/video-stats/v1/sync-stats",
-    json=payload,
-    headers=headers
+        "https://api.penpencil.co/uxncc-be-go/video-stats/v1/sync-stats",
+        json=payload,
+        headers=headers
     )
 
     try:
-      data = response.json()
+        data = response.json()
     except:
-      data = {}
+        data = {}
 
     if response.status_code == 200 and data.get("message") == "Stats synced successfully":
-       print(f"Sending chunks ({i+1}/{iterations}) of credits - 2XP", flush=True)
+        print(f"Sending chunks {chunk_label} of credits - 2XP", flush=True)
     else:
-       all_success = False
-       print(f"\nRequest failed: {response.status_code} {response.text}")
+        all_success = False
+        print(f"\nRequest failed: {response.status_code} {response.text}", flush=True)
 
 for i in range(iterations):
-    send_chunk(SECONDS_TO_ADD, current_position)
+    chunk_label = f"({i+1}/{iterations})"
+    send_chunk(SECONDS_TO_ADD, current_position, chunk_label)
     current_position += SECONDS_TO_ADD
     time.sleep(1)
 
 if remaining_seconds > 0:
-    send_chunk(remaining_seconds, current_position)
+    send_chunk(remaining_seconds, current_position, "(Remainder)")
     
 if all_success:
-    print(f"\nSuccessfully Credited {required_xp}XP to your account ✅")
+    print(f"\nSuccessfully Credited {required_xp}XP to your account ✅", flush=True)
 else:
-    print("\nProcess completed but some chunks failed.")
+    print("\nProcess completed but some chunks failed.", flush=True)
