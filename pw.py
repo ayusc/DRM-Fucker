@@ -261,10 +261,6 @@ async def handle_earnxp_command(event):
         await client.send_message(event.chat_id, "Error: XP value must be a multiple of 100.", reply_to=topic_id)
         return
 
-    if required_xp > 5000:
-        await client.send_message(event.chat_id, "Error: maximum allowed value for XP is 5000.", reply_to=topic_id)
-        return
-
     global is_processing
     if is_processing:
         await client.send_message(event.chat_id, "Another task is already running. Please wait.", reply_to=topic_id)
