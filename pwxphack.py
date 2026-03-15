@@ -42,6 +42,9 @@ if not BEARER_TOKEN:
     sys.exit(0)
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
+if not CLIENT_ID:
+    print("Error: CLIENT_ID environment variable is missing.")
+    sys.exit(0)
 
 SESSION_ID = str(uuid.uuid4())
 RANDOM_ID = str(uuid.uuid4())
