@@ -2,6 +2,8 @@
 # WARNING: USE AT YOUR OWN RISK !! 
 # USE YOUR OWN CREDENTIALS 
 
+# Usage python3 pwxphack.py <value>, where value is the amount of XP you want (eg: 5000)
+
 import os
 import json
 import base64
