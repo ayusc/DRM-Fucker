@@ -34,10 +34,6 @@ if required_xp % 100 != 0:
     print("Error: XP value must be a multiple of 100.")
     sys.exit(0)
 
-if required_xp > 5000:
-    print("Error: maximum allowed value for XP is 5000.")
-    sys.exit(0)
-
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
 if not BEARER_TOKEN:
     print("Error: BEARER_TOKEN environment variable is missing.")
