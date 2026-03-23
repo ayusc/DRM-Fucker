@@ -171,6 +171,7 @@ for i in range(iterations):
     chunk_label = f"({i+1}/{iterations})"
     send_chunk(SECONDS_TO_ADD, current_position, chunk_label)
     current_position += SECONDS_TO_ADD
+    time.sleep(1)
 
 if remaining_seconds > 0:
     send_chunk(remaining_seconds, current_position, "(Remainder)")
