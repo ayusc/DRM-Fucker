@@ -21,6 +21,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 PING_URL = os.getenv("PING_URL", "")
 BASE_DIR = "PW_DOWNLOADS"
 MAX_PAIRS = 5 # Telegram message limit length limit supports upto 5 links 
+OWNER_ID = int(os.getenv("OWNER_ID"))
 
 # Setup logging
 logging.basicConfig(
@@ -185,6 +186,10 @@ async def delete_service_messages(event):
 # --- Download Command Handler ---
 @client.on(events.NewMessage(pattern=r'(?i)^/pw(?:@[a-zA-Z0-9_]+)?\s+(.+)', incoming=True))
 async def handle_pw_command(event):
+        
+    if event.sender_id != OWNER_ID: 
+        return
+    
     topic_id = event.reply_to_msg_id if event.is_reply else None
 
     global is_processing
@@ -240,6 +245,10 @@ async def handle_pw_command(event):
 # --- XP Command Handler ---
 @client.on(events.NewMessage(pattern=r'(?i)^/earnxp(?:@[a-zA-Z0-9_]+)?(?:\s+(.+))?$', incoming=True))
 async def handle_earnxp_command(event):
+        
+    if event.sender_id != OWNER_ID: 
+        return
+    
     topic_id = event.reply_to_msg_id if event.is_reply else None
     value_str = event.pattern_match.group(1)
     
@@ -300,9 +309,83 @@ async def handle_earnxp_command(event):
     finally:
         set_processing_status(False)
 
+
+# We will need to update BEARER_TOKEN once the old one expires so we implement a command handler for ease
+@client.on(events.NewMessage(pattern=r'(?i)^/bearer(?:@[a-zA-Z0-9_]+)?\s+(.+)', incoming=True))
+async def handle_bearer_update(event):
+    
+    if event.sender_id != OWNER_ID: 
+        return
+    
+    topic_id = event.reply_to_msg_id if event.is_reply else None
+    new_token = event.pattern_match.group(1).strip()
+
+    if not KOYEB_API_TOKEN or not KOYEB_SERVICE_ID:
+        await client.send_message(
+            event.chat_id,
+            "**Configuration Error:** `KOYEB_API_TOKEN` and `KOYEB_SERVICE_ID` environment variables are not set.",
+            reply_to=topic_id
+        )
+        return
+
+    progress_message = await client.send_message(
+        event.chat_id,
+        "Please wait...",
+        reply_to=topic_id
+    )
+
+    loop = asyncio.get_running_loop()
+
+    def blocking_task():
+        headers = {
+            "Authorization": f"Bearer {KOYEB_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        url = f"https://app.koyeb.com/v1/services/{KOYEB_SERVICE_ID}"
+
+        # Fetch service
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            return False, f"Failed to fetch service: {resp.text}"
+
+        data = resp.json()
+        definition = data.get("service", {}).get("definition")
+
+        if not definition:
+            return False, "Invalid service definition received from Koyeb."
+
+        env_vars = definition.get("env", [])
+
+        token_updated = False
+        for env in env_vars:
+            if env.get("key") == "BEARER_TOKEN":
+                env["value"] = new_token
+                token_updated = True
+                break
+
+        if not token_updated:
+            env_vars.append({"key": "BEARER_TOKEN", "value": new_token})
+
+        definition["env"] = env_vars  
+        patch_payload = {
+            "definition": definition,
+            "skip_build": True
+        }
+
+        patch_resp = requests.patch(url, headers=headers, json=patch_payload)
+
+        if patch_resp.status_code == 200:
+            return True, "**Successfully updated `BEARER_TOKEN`.**\nA new deployment without build has been triggered on Koyeb."
+        else:
+            return False, f"**Failed to update service:**\n`{patch_resp.text}`"
+
+    success, result_msg = await loop.run_in_executor(None, blocking_task)
+    await progress_message.edit(result_msg)
+
 @client.on(events.NewMessage(pattern=r'(?i)^/ping(?:@[a-zA-Z0-9_]+)?$', incoming=True))
 async def ping(event):
-    await event.reply("PW Downloader Bot is alive and ready!")
+    await event.reply("PW Downloader is alive and ready!")
 
 # --- Scheduled Background Task ---
 IST = timezone(timedelta(hours=5, minutes=30))
