@@ -22,8 +22,8 @@ PING_URL = os.getenv("PING_URL", "")
 BASE_DIR = "PW_DOWNLOADS"
 MAX_PAIRS = 5 # Telegram message limit length limit supports upto 5 links 
 OWNER_ID = int(os.getenv("OWNER_ID"))
-KOYEB_API_TOKEN =  os.getenv("KOYEB_API_TOKEN")
-KOYEB_SERVICE_ID =  os.getenv("KOYEB_SERVICE_ID")
+KOYEB_API_TOKEN = os.getenv("KOYEB_API_TOKEN")
+KOYEB_SERVICE_ID = os.getenv("KOYEB_SERVICE_ID")
 
 # Setup logging
 logging.basicConfig(
