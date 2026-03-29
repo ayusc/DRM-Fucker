@@ -22,8 +22,8 @@ PING_URL = os.getenv("PING_URL", "")
 BASE_DIR = "PW_DOWNLOADS"
 MAX_PAIRS = 5 # Telegram message limit length limit supports upto 5 links 
 OWNER_ID = int(os.getenv("OWNER_ID"))
-KOYEB_API_TOKEN = os.getenv("KOYEB_API_TOKEN")
-KOYEB_SERVICE_ID = os.getenv("KOYEB_SERVICE_ID")
+KOYEB_API_TOKEN = os.getenv("KOYEB_API_TOKEN").strip()
+KOYEB_SERVICE_ID = os.getenv("KOYEB_SERVICE_ID").strip()
 
 # Setup logging
 logging.basicConfig(
@@ -313,14 +313,24 @@ async def handle_earnxp_command(event):
 
 
 # We will need to update BEARER_TOKEN once the old one expires so we implement a command handler for ease
-@client.on(events.NewMessage(pattern=r'(?i)^/bearer(?:@[a-zA-Z0-9_]+)?\s+(.+)', incoming=True))
+@client.on(events.NewMessage(pattern=r'(?i)^/bearer(?:@[a-zA-Z0-9_]+)?(?:\s+(.+))?$', incoming=True))
 async def handle_bearer_update(event):
     
     if event.sender_id != OWNER_ID: 
         return
     
     topic_id = event.reply_to_msg_id if event.is_reply else None
-    new_token = event.pattern_match.group(1).strip()
+    new_token = event.pattern_match.group(1)
+
+    if not new_token or not new_token.strip():
+        await client.send_message(
+            event.chat_id,
+            "Error: Please provide a bearer token.\nUsage: `/bearer <token>`",
+            reply_to=topic_id
+        )
+        return
+    
+    new_token = new_token.strip()
 
     if not KOYEB_API_TOKEN or not KOYEB_SERVICE_ID:
         await client.send_message(
